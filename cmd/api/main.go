@@ -17,7 +17,7 @@ func main() {
 	defer pool.Close()
 
 	router := gin.Default()
-	routes.SetupRoutes(router)
+	routes.SetupRoutes(router, pool)
 
 	log.Printf("🚀 servidor rodando na porta %s", cfg.AppPort)
 	log.Fatal(router.Run(":" + cfg.AppPort))
