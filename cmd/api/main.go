@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 
 	"github.com/jsimonis/ultimate-fodinha-api/internal/config"
@@ -14,13 +13,12 @@ import (
 func main() {
 	cfg := config.LoadConfig()
 
-	conn := db.Connect(cfg)
-	defer conn.Close(context.Background())
+	pool := db.Connect(cfg)
+	defer pool.Close()
 
 	router := gin.Default()
-
 	routes.SetupRoutes(router)
 
-	log.Printf("servidor rodando na porta %s", cfg.AppPort)
+	log.Printf("🚀 servidor rodando na porta %s", cfg.AppPort)
 	log.Fatal(router.Run(":" + cfg.AppPort))
 }

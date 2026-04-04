@@ -1,4 +1,34 @@
+# Env
 .env
+.env.*
+!.env.example
+
+# Build artifacts
 bin/
-tmp/
+dist/
+build/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+
+# Go
 vendor/
+coverage.out
+*.out
+
+# Temporary files
+tmp/
+tmp/**
+*.tmp
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
