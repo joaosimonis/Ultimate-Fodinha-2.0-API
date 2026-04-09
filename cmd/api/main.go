@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 
-	"github.com/jsimonis/ultimate-fodinha-api/internal/config"
-	"github.com/jsimonis/ultimate-fodinha-api/internal/db"
-	"github.com/jsimonis/ultimate-fodinha-api/internal/routes"
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/config"
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/db"
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/http/routes"
 
 	"github.com/gin-gonic/gin"
 )

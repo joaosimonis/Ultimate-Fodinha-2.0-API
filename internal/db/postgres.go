@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/jsimonis/ultimate-fodinha-api/internal/config"
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/config"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -33,6 +33,6 @@ func Connect(cfg config.Config) *pgxpool.Pool {
 		log.Fatalf("banco inacessível: %v", err)
 	}
 
-	log.Println("✅ conexão com PostgreSQL estabelecida")
+	log.Println("Conexão com PostgreSQL estabelecida")
 	return pool
 }

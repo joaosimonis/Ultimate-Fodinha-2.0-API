@@ -1,37 +1,42 @@
-package players
+package handlers
 
 import (
 	"errors"
 	"net/http"
 
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/players"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type Handler struct {
-	repo *Repository
+type PlayerHandler struct {
+	repo *players.Repository
 }
 
-func NewHandler(pool *pgxpool.Pool) *Handler {
-	return &Handler{repo: NewRepository(pool)}
+func NewPlayerHandler(pool *pgxpool.Pool) *PlayerHandler {
+	return &PlayerHandler{
+		repo: players.NewRepository(pool),
+	}
 }
 
-func (h *Handler) List(c *gin.Context) {
-	players, err := h.repo.FindAll(c.Request.Context())
+
+func (h *PlayerHandler) List(c *gin.Context) {
+	playersList, err := h.repo.FindAll(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao buscar jogadores"})
 		return
 	}
 
-	if players == nil {
-		players = []Player{}
+	if playersList == nil {
+		playersList = []players.Player{}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"players": players})
+	c.JSON(http.StatusOK, gin.H{"players": playersList})
 }
 
-func (h *Handler) Create(c *gin.Context) {
-	var req CreatePlayerRequest
+func (h *PlayerHandler) Create(c *gin.Context) {
+	var req players.CreatePlayerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "dados inválidos"})
 		return
@@ -42,8 +47,9 @@ func (h *Handler) Create(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao verificar jogador"})
 		return
 	}
+
 	if exists {
-		c.JSON(http.StatusConflict, gin.H{"error": ErrNameTaken.Error()})
+		c.JSON(http.StatusConflict, gin.H{"error": players.ErrNameTaken.Error()})
 		return
 	}
 
@@ -56,14 +62,15 @@ func (h *Handler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, player)
 }
 
-func (h *Handler) Delete(c *gin.Context) {
+func (h *PlayerHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.repo.Delete(c.Request.Context(), id); err != nil {
-		if errors.Is(err, ErrNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": ErrNotFound.Error()})
+		if errors.Is(err, players.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": players.ErrNotFound.Error()})
 			return
 		}
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao remover jogador"})
 		return
 	}

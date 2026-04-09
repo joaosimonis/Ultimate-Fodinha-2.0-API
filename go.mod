@@ -1,4 +1,4 @@
-module github.com/jsimonis/ultimate-fodinha-api
+module github.com/joaosimonis/ultimate-fodinha-api
 
 go 1.26.1
 

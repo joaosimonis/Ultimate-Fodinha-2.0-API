@@ -4,15 +4,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/jsimonis/ultimate-fodinha-api/internal/matches"
-	"github.com/jsimonis/ultimate-fodinha-api/internal/players"
-	"github.com/jsimonis/ultimate-fodinha-api/internal/ranking"
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/http/handlers"
 )
 
 func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool) {
-	playersHandler := players.NewHandler(pool)
-	matchesHandler := matches.NewHandler(pool)
-	rankingHandler := ranking.NewHandler(pool)
+	playersHandler := handlers.NewPlayerHandler(pool)
+	matchesHandler := handlers.NewMatchHandler(pool)
+	rankingHandler := handlers.NewRankingHandler(pool)
 
 	v1 := r.Group("/api/v1")
 	{
