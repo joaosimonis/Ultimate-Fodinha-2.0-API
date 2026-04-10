@@ -20,8 +20,7 @@ func NewPlayerHandler(pool *pgxpool.Pool) *PlayerHandler {
 	}
 }
 
-
-func (h *PlayerHandler) List(c *gin.Context) {
+func (h *PlayerHandler) ListPlayers(c *gin.Context) {
 	playersList, err := h.repo.FindAll(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao buscar jogadores"})
@@ -35,7 +34,24 @@ func (h *PlayerHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"players": playersList})
 }
 
-func (h *PlayerHandler) Create(c *gin.Context) {
+func (h *PlayerHandler) GetPlayerByID(c *gin.Context) {
+	id := c.Param("id")
+
+	player, err := h.repo.FindByID(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, players.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": players.ErrNotFound.Error()})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao buscar jogador"})
+		return
+	}
+
+	c.JSON(http.StatusOK, player)
+}
+
+func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 	var req players.CreatePlayerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "dados inválidos"})
@@ -62,7 +78,7 @@ func (h *PlayerHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, player)
 }
 
-func (h *PlayerHandler) Delete(c *gin.Context) {
+func (h *PlayerHandler) DeletePlayer(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.repo.Delete(c.Request.Context(), id); err != nil {

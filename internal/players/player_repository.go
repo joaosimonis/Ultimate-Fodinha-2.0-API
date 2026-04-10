@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -41,6 +42,31 @@ func (r *Repository) FindAll(ctx context.Context) ([]Player, error) {
 		players = append(players, p)
 	}
 	return players, nil
+}
+
+func (r *Repository) FindByID(ctx context.Context, id string) (Player, error) {
+	var p Player
+	var ultimateJSON []byte
+
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, name, avatar_key, title, lore, ultimate, created_at
+		FROM players
+		WHERE id = $1
+	`, id).Scan(&p.ID, &p.Name, &p.AvatarKey, &p.Title, &p.Lore, &ultimateJSON, &p.CreatedAt)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return Player{}, ErrNotFound
+		}
+		return Player{}, err
+	}
+
+	if ultimateJSON != nil {
+		if err := json.Unmarshal(ultimateJSON, &p.Ultimate); err != nil {
+			return Player{}, err
+		}
+	}
+
+	return p, nil
 }
 
 func (r *Repository) Create(ctx context.Context, req CreatePlayerRequest) (Player, error) {

@@ -18,9 +18,10 @@ func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool) {
 			c.JSON(200, gin.H{"status": "ok"})
 		})
 
-		v1.GET("/players", playersHandler.List)
-		v1.POST("/players", playersHandler.Create)
-		v1.DELETE("/players/:id", playersHandler.Delete)
+		v1.GET("/players", playersHandler.ListPlayers)
+		v1.GET("/players/:id", playersHandler.GetPlayerByID)
+		v1.POST("/players", playersHandler.CreatePlayer)
+		v1.DELETE("/players/:id", playersHandler.DeletePlayer)
 
 		v1.GET("/matches/live", matchesHandler.ListLive)
 		v1.GET("/matches/:room_code", matchesHandler.GetByRoomCode)
