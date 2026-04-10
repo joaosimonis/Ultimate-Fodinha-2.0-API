@@ -3,14 +3,13 @@ package db
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
-	"github.com/joaosimonis/ultimate-fodinha-api/internal/config"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/config"
 )
 
-func Connect(cfg config.Config) *pgxpool.Pool {
+func Connect(cfg config.Config) (*pgxpool.Pool, error) {
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		cfg.DBHost,
@@ -26,13 +25,13 @@ func Connect(cfg config.Config) *pgxpool.Pool {
 
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
-		log.Fatalf("erro ao criar pool de conexões: %v", err)
+		return nil, fmt.Errorf("criar pool de conexões: %w", err)
 	}
 
 	if err := pool.Ping(ctx); err != nil {
-		log.Fatalf("banco inacessível: %v", err)
+		pool.Close()
+		return nil, fmt.Errorf("banco inacessível: %w", err)
 	}
 
-	log.Println("Conexão com PostgreSQL estabelecida")
-	return pool
+	return pool, nil
 }
