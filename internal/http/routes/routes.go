@@ -1,33 +1,53 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"net/http" // Pacote padrão para criar APIs REST
 
-	"github.com/joaosimonis/ultimate-fodinha-api/internal/http/handlers"
+	"github.com/gin-gonic/gin"        // Framework para criar APIs REST
+	"github.com/jackc/pgx/v5/pgxpool" // Pool de conexões com o PostgreSQL
+
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/http/handlers" // É o meu pacote com os handlers HTTP
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/players"
 )
 
+// Recebe o router do Gin e a pool de conexões com o Postgres
 func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool) {
-	playersHandler := handlers.NewPlayerHandler(pool)
+	// 1. Cria os handlers
+	playersRepo := players.NewRepository(pool)
+	playersService := players.NewService(playersRepo)
+	playersHandler := handlers.NewPlayerHandler(playersService)
 	matchesHandler := handlers.NewMatchHandler(pool)
 	rankingHandler := handlers.NewRankingHandler(pool)
 
+	// 2. Grupo versionado -> basicamente para não repetirmos /api/v1 nas rotas que criarmos
 	v1 := r.Group("/api/v1")
 	{
+		// 3. Rota de check da API (apenas para ver se está tudo certo)
 		v1.GET("/health", func(c *gin.Context) {
-			c.JSON(200, gin.H{"status": "ok"})
+			c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		})
 
-		v1.GET("/players", playersHandler.ListPlayers)
-		v1.GET("/players/:id", playersHandler.GetPlayerByID)
-		v1.POST("/players", playersHandler.CreatePlayer)
-		v1.DELETE("/players/:id", playersHandler.DeletePlayer)
+		// 4. Rotas da API, usando Group para melhor separação
+		players := v1.Group("/players")
+		{
+			players.GET("", playersHandler.ListPlayers)
+			players.GET("/:id", playersHandler.GetPlayerByID)
+			players.POST("", playersHandler.CreatePlayer)
+			players.DELETE("/:id", playersHandler.DeletePlayer)
+		}
 
-		v1.GET("/matches/live", matchesHandler.ListLive)
-		v1.GET("/matches/:room_code", matchesHandler.GetByRoomCode)
-		v1.POST("/matches", matchesHandler.Create)
-		v1.PATCH("/matches/:id/finish", matchesHandler.Finish)
+		matches := v1.Group("/matches")
+		{
+			matches.GET("/live", matchesHandler.ListLive)
+			matches.GET("/:room_code", matchesHandler.GetByRoomCode)
+			matches.POST("", matchesHandler.Create)
+			matches.PATCH("/:id/finish", matchesHandler.Finish)
+		}
 
-		v1.GET("/ranking/:mode", rankingHandler.GetByMode)
+		ranking := v1.Group("/ranking")
+		{
+			ranking.GET("/:mode", rankingHandler.GetByMode)
+		}
+
 	}
 }
