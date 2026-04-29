@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool" // Pool de conexões com o PostgreSQL
 
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/http/handlers" // É o meu pacote com os handlers HTTP
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/matches"
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/players"
 )
 
@@ -16,7 +17,11 @@ func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool) {
 	playersRepo := players.NewRepository(pool)
 	playersService := players.NewService(playersRepo)
 	playersHandler := handlers.NewPlayerHandler(playersService)
-	matchesHandler := handlers.NewMatchHandler(pool)
+
+	matchesRepo := matches.NewRepository(pool)
+	matchesService := matches.NewService(matchesRepo)
+	matchesHandler := handlers.NewMatchHandler(matchesService)
+
 	rankingHandler := handlers.NewRankingHandler(pool)
 
 	// 2. Grupo versionado -> basicamente para não repetirmos /api/v1 nas rotas que criarmos
@@ -39,7 +44,8 @@ func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool) {
 		matches := v1.Group("/matches")
 		{
 			matches.GET("/live", matchesHandler.ListLive)
-			matches.GET("/:room_code", matchesHandler.GetByRoomCode)
+			matches.GET("/room/:room_code", matchesHandler.GetByRoomCode)
+			matches.GET("/:id", matchesHandler.GetByID)
 			matches.POST("", matchesHandler.Create)
 			matches.PATCH("/:id/finish", matchesHandler.Finish)
 		}

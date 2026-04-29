@@ -4,6 +4,7 @@ CREATE TABLE matches (
   status      TEXT NOT NULL DEFAULT 'ongoing',
   room_code   TEXT NOT NULL UNIQUE,
   max_score   INT,
+  lives       INT,
   created_at  TIMESTAMPTZ DEFAULT NOW(),
   finished_at TIMESTAMPTZ
 );
