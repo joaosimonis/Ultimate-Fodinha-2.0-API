@@ -2,6 +2,7 @@ package players
 
 import "time"
 
+
 type Ultimate struct {
     Name        string `json:"name"`
     Description string `json:"description"`
