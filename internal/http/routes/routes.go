@@ -43,11 +43,17 @@ func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool) {
 
 		matches := v1.Group("/matches")
 		{
-			matches.GET("/live", matchesHandler.ListLive)
-			matches.GET("/room/:room_code", matchesHandler.GetByRoomCode)
+			matches.GET("", matchesHandler.List)
 			matches.GET("/:id", matchesHandler.GetByID)
 			matches.POST("", matchesHandler.Create)
+			matches.POST("/:id/players", matchesHandler.AddPlayers)
+			matches.DELETE("/:id/players/:player_id", matchesHandler.RemovePlayer)
 			matches.PATCH("/:id/finish", matchesHandler.Finish)
+		}
+
+		rooms := v1.Group("/rooms")
+		{
+			rooms.GET("/:room_code", matchesHandler.GetByRoomCode)
 		}
 
 		ranking := v1.Group("/ranking")

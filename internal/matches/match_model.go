@@ -15,24 +15,51 @@ type Match struct {
 }
 
 type MatchPlayer struct {
-	ID         string `json:"id"`
-	MatchID    string `json:"match_id"`
-	PlayerID   string `json:"player_id"`
-	TeamIndex  *int   `json:"team_index"`
-	FinalScore int    `json:"final_score"`
-	Placement  *int   `json:"placement"`
-	IsWinner   bool   `json:"is_winner"`
+	ID             string `json:"id"`
+	MatchID        string `json:"match_id"`
+	PlayerID       string `json:"player_id"`
+	TeamName       string `json:"team_name,omitempty"`
+	FinalScore     *int   `json:"final_score,omitempty"`
+	RemainingLives *int   `json:"remaining_lives,omitempty"`
+	Placement      *int   `json:"placement"`
+	IsWinner       bool   `json:"is_winner"`
 }
 
 type CreateMatchRequest struct {
-	Mode     string                     `json:"mode" binding:"required"`
-	RoomCode string                     `json:"room_code" binding:"required"`
-	MaxScore *int                       `json:"max_score"`
-	Lives    *int                       `json:"lives"`
-	Players  []CreateMatchPlayerRequest `json:"players"`
+	Mode     string `json:"mode" binding:"required"`
+	MaxScore *int   `json:"max_score"`
+	Lives    *int   `json:"lives"`
+}
+
+type AddMatchPlayersRequest struct {
+	Players []CreateMatchPlayerRequest `json:"players" binding:"required"`
 }
 
 type CreateMatchPlayerRequest struct {
-	PlayerID  string `json:"player_id" binding:"required"`
-	TeamIndex *int   `json:"team_index"`
+	PlayerID string `json:"player_id" binding:"required"`
+	TeamName string `json:"team_name"`
+}
+
+type FinishMatchRequest struct {
+	Players []FinishMatchPlayerRequest `json:"players"`
+	Teams   []FinishMatchTeamRequest   `json:"teams"`
+}
+
+type FinishMatchPlayerRequest struct {
+	PlayerID       string `json:"player_id" binding:"required"`
+	RemainingLives *int   `json:"remaining_lives"`
+	Placement      *int   `json:"placement"`
+}
+
+type FinishMatchTeamRequest struct {
+	TeamName   string `json:"team_name" binding:"required"`
+	FinalScore *int   `json:"final_score"`
+}
+
+type FinishMatchPlayerResult struct {
+	PlayerID       string
+	FinalScore     *int
+	RemainingLives *int
+	Placement      int
+	IsWinner       bool
 }
