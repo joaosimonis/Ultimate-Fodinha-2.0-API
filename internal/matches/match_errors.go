@@ -38,3 +38,5 @@ var ErrTeamsNotAllowed = errors.New("teams não é permitido para finalizar fodi
 var ErrTeamScoreRequired = errors.New("pontuação da equipe é obrigatória")
 var ErrInvalidTeamScore = errors.New("pontuação da equipe inválida")
 var ErrUnknownTeam = errors.New("equipe não pertence à partida")
+var ErrInvalidHostToken = errors.New("host_token inválido")
+var ErrInvalidLiveState = errors.New("estado da sala inválido")

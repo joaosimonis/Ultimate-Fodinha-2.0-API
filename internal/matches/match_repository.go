@@ -23,7 +23,7 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 
 func (r *Repository) FindAll(ctx context.Context, status string) ([]Match, error) {
 	query := `
-		SELECT id, mode, status, room_code, max_score, lives, created_at, finished_at
+		SELECT id, mode, status, room_code, max_score, lives, live_state, created_at, finished_at
 		FROM matches
 		ORDER BY created_at DESC
 	`
@@ -31,7 +31,7 @@ func (r *Repository) FindAll(ctx context.Context, status string) ([]Match, error
 
 	if status != "" {
 		query = `
-			SELECT id, mode, status, room_code, max_score, lives, created_at, finished_at
+			SELECT id, mode, status, room_code, max_score, lives, live_state, created_at, finished_at
 			FROM matches
 			WHERE status = $1
 			ORDER BY created_at DESC
@@ -63,7 +63,7 @@ func (r *Repository) FindAll(ctx context.Context, status string) ([]Match, error
 
 func (r *Repository) FindByRoomCode(ctx context.Context, roomCode string) (Match, error) {
 	match, err := r.findOne(ctx, `
-		SELECT id, mode, status, room_code, max_score, lives, created_at, finished_at
+		SELECT id, mode, status, room_code, max_score, lives, live_state, created_at, finished_at
 		FROM matches
 		WHERE room_code = $1
 	`, roomCode)
@@ -82,7 +82,7 @@ func (r *Repository) FindByRoomCode(ctx context.Context, roomCode string) (Match
 
 func (r *Repository) FindByID(ctx context.Context, id string) (Match, error) {
 	match, err := r.findOne(ctx, `
-		SELECT id, mode, status, room_code, max_score, lives, created_at, finished_at
+		SELECT id, mode, status, room_code, max_score, lives, live_state, created_at, finished_at
 		FROM matches
 		WHERE id = $1
 	`, id)
@@ -99,12 +99,12 @@ func (r *Repository) FindByID(ctx context.Context, id string) (Match, error) {
 	return match, nil
 }
 
-func (r *Repository) Create(ctx context.Context, req CreateMatchRequest, roomCode string) (Match, error) {
+func (r *Repository) Create(ctx context.Context, req CreateMatchRequest, roomCode string, hostTokenHash string) (Match, error) {
 	match, err := scanMatch(r.pool.QueryRow(ctx, `
-		INSERT INTO matches (mode, room_code, max_score, lives)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, mode, status, room_code, max_score, lives, created_at, finished_at
-	`, req.Mode, roomCode, req.MaxScore, req.Lives))
+		INSERT INTO matches (mode, room_code, host_token_hash, max_score, lives)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, mode, status, room_code, max_score, lives, live_state, created_at, finished_at
+	`, req.Mode, roomCode, hostTokenHash, req.MaxScore, req.Lives))
 	if err != nil {
 		if isUniqueViolation(err) {
 			return Match{}, ErrRoomCodeTaken
@@ -181,7 +181,7 @@ func (r *Repository) Finish(ctx context.Context, id string, results []FinishMatc
 		UPDATE matches
 		SET status = 'finished', finished_at = NOW()
 		WHERE id = $1
-		RETURNING id, mode, status, room_code, max_score, lives, created_at, finished_at
+		RETURNING id, mode, status, room_code, max_score, lives, live_state, created_at, finished_at
 	`, id))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -209,6 +209,44 @@ func (r *Repository) ExistsByRoomCode(ctx context.Context, roomCode string) (boo
 		SELECT EXISTS(SELECT 1 FROM matches WHERE LOWER(room_code) = LOWER($1))
 	`, roomCode).Scan(&exists)
 	return exists, err
+}
+
+func (r *Repository) FindHostTokenHashByRoomCode(ctx context.Context, roomCode string) (string, error) {
+	var hostTokenHash sql.NullString
+	err := r.pool.QueryRow(ctx, `
+		SELECT host_token_hash
+		FROM matches
+		WHERE LOWER(room_code) = LOWER($1)
+	`, roomCode).Scan(&hostTokenHash)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", ErrNotFound
+		}
+		return "", err
+	}
+
+	if !hostTokenHash.Valid || strings.TrimSpace(hostTokenHash.String) == "" {
+		return "", ErrInvalidHostToken
+	}
+
+	return hostTokenHash.String, nil
+}
+
+func (r *Repository) UpdateLiveStateByRoomCode(ctx context.Context, roomCode string, liveState []byte) error {
+	result, err := r.pool.Exec(ctx, `
+		UPDATE matches
+		SET live_state = $1
+		WHERE LOWER(room_code) = LOWER($2)
+	`, liveState, roomCode)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	return nil
 }
 
 func (r *Repository) findOne(ctx context.Context, query string, args ...any) (Match, error) {
@@ -259,6 +297,7 @@ func scanMatch(scanner matchScanner) (Match, error) {
 	var match Match
 	var maxScore sql.NullInt64
 	var lives sql.NullInt64
+	var liveState []byte
 	var finishedAt sql.NullTime
 
 	err := scanner.Scan(
@@ -268,6 +307,7 @@ func scanMatch(scanner matchScanner) (Match, error) {
 		&match.RoomCode,
 		&maxScore,
 		&lives,
+		&liveState,
 		&match.CreatedAt,
 		&finishedAt,
 	)
@@ -283,6 +323,10 @@ func scanMatch(scanner matchScanner) (Match, error) {
 	if lives.Valid {
 		value := int(lives.Int64)
 		match.Lives = &value
+	}
+
+	if len(liveState) > 0 && string(liveState) != "null" {
+		match.LiveState = liveState
 	}
 
 	if finishedAt.Valid {

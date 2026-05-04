@@ -3,6 +3,7 @@ module github.com/joaosimonis/ultimate-fodinha-api
 go 1.26.1
 
 require (
+	github.com/coder/websocket v1.8.14
 	github.com/gin-gonic/gin v1.12.0
 	github.com/jackc/pgx/v5 v5.9.1
 	github.com/joho/godotenv v1.5.1

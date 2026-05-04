@@ -3,6 +3,11 @@ package matches
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -24,11 +29,13 @@ type RepositoryReader interface {
 	FindAll(ctx context.Context, status string) ([]Match, error)
 	FindByID(ctx context.Context, id string) (Match, error)
 	FindByRoomCode(ctx context.Context, roomCode string) (Match, error)
-	Create(ctx context.Context, req CreateMatchRequest, roomCode string) (Match, error)
+	Create(ctx context.Context, req CreateMatchRequest, roomCode string, hostTokenHash string) (Match, error)
 	AddPlayers(ctx context.Context, id string, req AddMatchPlayersRequest) (Match, error)
 	RemovePlayer(ctx context.Context, id string, playerID string) (Match, error)
 	Finish(ctx context.Context, id string, results []FinishMatchPlayerResult) (Match, error)
 	ExistsByRoomCode(ctx context.Context, roomCode string) (bool, error)
+	FindHostTokenHashByRoomCode(ctx context.Context, roomCode string) (string, error)
+	UpdateLiveStateByRoomCode(ctx context.Context, roomCode string, liveState []byte) error
 }
 
 type Service struct {
@@ -74,7 +81,18 @@ func (s *Service) Create(ctx context.Context, req CreateMatchRequest) (Match, er
 		return Match{}, err
 	}
 
-	return s.repo.Create(ctx, req, roomCode)
+	hostToken, err := generateHostToken()
+	if err != nil {
+		return Match{}, err
+	}
+
+	match, err := s.repo.Create(ctx, req, roomCode, hashHostToken(hostToken))
+	if err != nil {
+		return Match{}, err
+	}
+	match.HostToken = &hostToken
+
+	return match, nil
 }
 
 func (s *Service) AddPlayers(ctx context.Context, id string, req AddMatchPlayersRequest) (Match, error) {
@@ -114,6 +132,38 @@ func (s *Service) Finish(ctx context.Context, id string, req FinishMatchRequest)
 	}
 
 	return s.repo.Finish(ctx, id, results)
+}
+
+func (s *Service) ValidateHostToken(ctx context.Context, roomCode string, hostToken string) (bool, error) {
+	hostToken = strings.TrimSpace(hostToken)
+	if hostToken == "" {
+		return false, nil
+	}
+
+	storedHash, err := s.repo.FindHostTokenHashByRoomCode(ctx, roomCode)
+	if err != nil {
+		return false, err
+	}
+
+	hostTokenHash := hashHostToken(hostToken)
+	return subtle.ConstantTimeCompare([]byte(hostTokenHash), []byte(storedHash)) == 1, nil
+}
+
+func (s *Service) UpdateLiveState(ctx context.Context, roomCode string, hostToken string, liveState json.RawMessage) error {
+	if len(liveState) == 0 || !json.Valid(liveState) {
+		return ErrInvalidLiveState
+	}
+
+	isHost, err := s.ValidateHostToken(ctx, roomCode, hostToken)
+	if err != nil {
+		return err
+	}
+
+	if !isHost {
+		return ErrInvalidHostToken
+	}
+
+	return s.repo.UpdateLiveStateByRoomCode(ctx, roomCode, liveState)
 }
 
 func isValidMode(mode string) bool {
@@ -278,6 +328,20 @@ func generateRoomCode() (string, error) {
 	}
 
 	return string(bytes), nil
+}
+
+func generateHostToken() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("gerar token de controle da sala: %w", err)
+	}
+
+	return base64.RawURLEncoding.EncodeToString(bytes), nil
+}
+
+func hashHostToken(hostToken string) string {
+	sum := sha256.Sum256([]byte(hostToken))
+	return hex.EncodeToString(sum[:])
 }
 
 func validateFinishResult(match Match, req FinishMatchRequest) ([]FinishMatchPlayerResult, error) {

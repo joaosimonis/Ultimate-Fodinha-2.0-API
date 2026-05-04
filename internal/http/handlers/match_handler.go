@@ -208,6 +208,8 @@ func (h *MatchHandler) handleMatchValidationError(c *gin.Context, err error) boo
 		matches.ErrTeamScoreRequired,
 		matches.ErrInvalidTeamScore,
 		matches.ErrUnknownTeam,
+		matches.ErrInvalidHostToken,
+		matches.ErrInvalidLiveState,
 	}
 
 	for _, validationErr := range validationErrors {
