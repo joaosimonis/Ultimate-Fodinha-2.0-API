@@ -1,21 +1,19 @@
 package routes
 
 import (
-	"net/http" // Pacote padrão para criar APIs REST
+	"net/http"
 
-	"github.com/gin-gonic/gin"        // Framework para criar APIs REST
-	"github.com/jackc/pgx/v5/pgxpool" // Pool de conexões com o PostgreSQL
+	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/joaosimonis/ultimate-fodinha-api/internal/http/handlers" // É o meu pacote com os handlers HTTP
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/http/handlers"
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/matches"
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/players"
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/ranking"
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/ws"
 )
 
-// Recebe o router do Gin e a pool de conexões com o Postgres
 func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool) {
-	// 1. Cria os handlers
 	playersRepo := players.NewRepository(pool)
 	playersService := players.NewService(playersRepo)
 	playersHandler := handlers.NewPlayerHandler(playersService)
@@ -31,15 +29,12 @@ func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool) {
 	wsHub := ws.NewHub()
 	wsHandler := handlers.NewWebSocketHandler(wsHub, matchesService)
 
-	// 2. Grupo versionado -> basicamente para não repetirmos /api/v1 nas rotas que criarmos
 	v1 := r.Group("/api/v1")
 	{
-		// 3. Rota de check da API (apenas para ver se está tudo certo)
 		v1.GET("/health", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		})
 
-		// 4. Rotas da API, usando Group para melhor separação
 		players := v1.Group("/players")
 		{
 			players.GET("", playersHandler.ListPlayers)

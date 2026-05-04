@@ -1,13 +1,12 @@
 package config
 
 import (
-	"fmt" // Erros formatados (fmt.Errorf)
-	"os"  // Interagir com o Sistema Operacional, principalmente ler variáveis de ambiente (os.LookupEnv) e verificar erro de arquivos inexistentes (os.IsNotExist)
+	"fmt"
+	"os"
 
 	"github.com/joho/godotenv"
 )
 
-// Centraliza as configurações que a API precisa
 type Config struct {
 	AppPort        string
 	AllowedOrigins string
@@ -19,23 +18,11 @@ type Config struct {
 	DBSSLMode      string
 }
 
-// Carrega a configuração
 func LoadConfig() (Config, error) {
-	// 1. Carregar .env
-	// Não existe -> tudo bem, segue o fluxo igual
-	// Deu outro tipo de erro -> retorna o erro (erro ao abrir arquivo ou ao interpretar o conteúdo de .env)
 	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
-		// Retorno de erro
 		return Config{}, fmt.Errorf("load .env: %w", err)
 	}
 
-	/*
-		Exemplo desse "outro erro" que pode acontecer
-		No meu .env, mandei um DB-HOST=localhost (não está com o parser válido no nome da variável)
-		Retornaria -> load .env: unexpected character "-" in variable name near "DB-HOST=localhost\n
-	*/
-
-	// 2. Lendo variáveis obrigatórias
 	dbHost, err := requiredEnv("DB_HOST")
 	if err != nil {
 		return Config{}, err
@@ -56,7 +43,6 @@ func LoadConfig() (Config, error) {
 		return Config{}, err
 	}
 
-	// 3. Monta o Struct final
 	return Config{
 		AppPort:        getEnv("APP_PORT", "8080"),
 		AllowedOrigins: getEnv("ALLOWED_ORIGINS", ""),
@@ -66,13 +52,10 @@ func LoadConfig() (Config, error) {
 		DBPassword:     dbPassword,
 		DBName:         dbName,
 		DBSSLMode:      getEnv("DB_SSLMODE", "disable"),
-	}, nil // Retornamos nil como 2º valor retornado em caso de sucesso. Se desse erro, retornaríamos err
+	}, nil
 }
 
-// Lê uma variável de ambiente opcional
 func getEnv(key, fallback string) string {
-	// value: valor da variável de ambiente (é nativo do os.LookupEnv)
-	// ok: um bool dizendo se ela existe ou não (é nativo do os.LookupEnv)
 	value, ok := os.LookupEnv(key)
 	if !ok || value == "" {
 		return fallback
@@ -81,7 +64,6 @@ func getEnv(key, fallback string) string {
 	return value
 }
 
-// Lê uma variável de ambiente obrigatória
 func requiredEnv(key string) (string, error) {
 	value, ok := os.LookupEnv(key)
 	if !ok || value == "" {
