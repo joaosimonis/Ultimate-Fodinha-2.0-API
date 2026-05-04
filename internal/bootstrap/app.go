@@ -3,10 +3,11 @@ package bootstrap
 import (
 	"fmt" // Enviar erros formatados via fmt.Errorf
 
-	"github.com/gin-gonic/gin" // Framework para criar APIs REST
-	"github.com/jackc/pgx/v5/pgxpool" // Pool de conexões com o PostgreSQL
+	"github.com/gin-gonic/gin"                                    // Framework para criar APIs REST
+	"github.com/jackc/pgx/v5/pgxpool"                             // Pool de conexões com o PostgreSQL
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/config" // Pacote que carrega as variáveis de ambiente
-	"github.com/joaosimonis/ultimate-fodinha-api/internal/db" // Pacote que abre conexão com banco
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/db"     // Pacote que abre conexão com banco
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/http/middleware"
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/http/routes" // Pacote que registra as rotas da API
 )
 
@@ -34,6 +35,8 @@ func BuildApp() (*App, error) {
 	// 3. Cria o router -> o Default cria um *gin.Engine com middlewares padrão, como logger e recovery
 	// Resumindo, simplifica muito nossa vida
 	router := gin.Default()
+	router.Use(middleware.CORS(cfg.AllowedOrigins))
+
 	// 4. Registra as rotas
 	routes.SetupRoutes(router, pool)
 
@@ -56,4 +59,3 @@ func (a *App) Close() {
 		a.DB.Close()
 	}
 }
-

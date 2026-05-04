@@ -2,20 +2,21 @@ package config
 
 import (
 	"fmt" // Erros formatados (fmt.Errorf)
-	"os" // Interagir com o Sistema Operacional, principalmente ler variáveis de ambiente (os.LookupEnv) e verificar erro de arquivos inexistentes (os.IsNotExist)
+	"os"  // Interagir com o Sistema Operacional, principalmente ler variáveis de ambiente (os.LookupEnv) e verificar erro de arquivos inexistentes (os.IsNotExist)
 
 	"github.com/joho/godotenv"
 )
 
 // Centraliza as configurações que a API precisa
 type Config struct {
-	AppPort    string
-	DBHost     string
-	DBPort     string
-	DBUser     string
-	DBPassword string
-	DBName     string
-	DBSSLMode  string
+	AppPort        string
+	AllowedOrigins string
+	DBHost         string
+	DBPort         string
+	DBUser         string
+	DBPassword     string
+	DBName         string
+	DBSSLMode      string
 }
 
 // Carrega a configuração
@@ -28,7 +29,7 @@ func LoadConfig() (Config, error) {
 		return Config{}, fmt.Errorf("load .env: %w", err)
 	}
 
-	/* 
+	/*
 		Exemplo desse "outro erro" que pode acontecer
 		No meu .env, mandei um DB-HOST=localhost (não está com o parser válido no nome da variável)
 		Retornaria -> load .env: unexpected character "-" in variable name near "DB-HOST=localhost\n
@@ -57,14 +58,15 @@ func LoadConfig() (Config, error) {
 
 	// 3. Monta o Struct final
 	return Config{
-		AppPort:    getEnv("APP_PORT", "8080"),
-		DBHost:     dbHost,
-		DBPort:     getEnv("DB_PORT", "5432"),
-		DBUser:     dbUser,
-		DBPassword: dbPassword,
-		DBName:     dbName,
-		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
-	}, nil // Retornamos nil como 2º valor retornado em caso de sucesso. Se desse erro, retornaríamos err 
+		AppPort:        getEnv("APP_PORT", "8080"),
+		AllowedOrigins: getEnv("ALLOWED_ORIGINS", ""),
+		DBHost:         dbHost,
+		DBPort:         getEnv("DB_PORT", "5432"),
+		DBUser:         dbUser,
+		DBPassword:     dbPassword,
+		DBName:         dbName,
+		DBSSLMode:      getEnv("DB_SSLMODE", "disable"),
+	}, nil // Retornamos nil como 2º valor retornado em caso de sucesso. Se desse erro, retornaríamos err
 }
 
 // Lê uma variável de ambiente opcional
