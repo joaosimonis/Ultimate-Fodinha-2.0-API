@@ -9,6 +9,7 @@ import (
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/http/handlers" // É o meu pacote com os handlers HTTP
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/matches"
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/players"
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/ranking"
 )
 
 // Recebe o router do Gin e a pool de conexões com o Postgres
@@ -22,7 +23,9 @@ func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool) {
 	matchesService := matches.NewService(matchesRepo)
 	matchesHandler := handlers.NewMatchHandler(matchesService)
 
-	rankingHandler := handlers.NewRankingHandler(pool)
+	rankingRepo := ranking.NewRepository(pool)
+	rankingService := ranking.NewService(rankingRepo)
+	rankingHandler := handlers.NewRankingHandler(rankingService)
 
 	// 2. Grupo versionado -> basicamente para não repetirmos /api/v1 nas rotas que criarmos
 	v1 := r.Group("/api/v1")
@@ -58,7 +61,8 @@ func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool) {
 
 		ranking := v1.Group("/ranking")
 		{
-			ranking.GET("/:mode", rankingHandler.GetByMode)
+			ranking.GET("", rankingHandler.Get)
+			ranking.GET("/:mode", rankingHandler.Get)
 		}
 
 	}
