@@ -2,7 +2,7 @@ package players
 
 import "context"
 
-type RepositoryReader interface {
+type PlayerRepository interface {
 	FindAll(ctx context.Context) ([]Player, error)
 	FindByID(ctx context.Context, id string) (Player, error)
 	Create(ctx context.Context, req CreatePlayerRequest) (Player, error)
@@ -11,10 +11,10 @@ type RepositoryReader interface {
 }
 
 type Service struct {
-	repo RepositoryReader
+	repo PlayerRepository
 }
 
-func NewService(repo RepositoryReader) *Service {
+func NewService(repo PlayerRepository) *Service {
 	return &Service{repo: repo}
 }
 

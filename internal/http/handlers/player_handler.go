@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/http/response"
@@ -31,6 +32,7 @@ func NewPlayerHandler(service PlayerService) *PlayerHandler {
 func (h *PlayerHandler) ListPlayers(c *gin.Context) {
 	playersList, err := h.service.ListPlayers(c.Request.Context())
 	if err != nil {
+		log.Printf("erro ao buscar jogadores: %v", err)
 		response.Error(c, http.StatusInternalServerError, "erro ao buscar jogadores")
 		return
 	}
@@ -48,6 +50,7 @@ func (h *PlayerHandler) GetPlayerByID(c *gin.Context) {
 			return
 		}
 
+		log.Printf("erro ao buscar jogador id=%s: %v", id, err)
 		response.Error(c, http.StatusInternalServerError, "erro ao buscar jogador")
 		return
 	}
@@ -69,6 +72,7 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 			return
 		}
 
+		log.Printf("erro ao criar jogador name=%s: %v", req.Name, err)
 		response.Error(c, http.StatusInternalServerError, "erro ao criar jogador")
 		return
 	}
@@ -85,6 +89,7 @@ func (h *PlayerHandler) DeletePlayer(c *gin.Context) {
 			return
 		}
 
+		log.Printf("erro ao remover jogador id=%s: %v", id, err)
 		response.Error(c, http.StatusInternalServerError, "erro ao remover jogador")
 		return
 	}
