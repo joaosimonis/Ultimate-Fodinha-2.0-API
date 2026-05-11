@@ -66,6 +66,7 @@ func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool) {
 		ranking := v1.Group("/ranking")
 		{
 			ranking.GET("", rankingHandler.Get)
+			ranking.GET("/truco/teams", rankingHandler.GetTrucoTeams)
 			ranking.GET("/:mode", rankingHandler.Get)
 		}
 

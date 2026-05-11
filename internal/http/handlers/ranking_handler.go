@@ -13,6 +13,7 @@ import (
 
 type RankingService interface {
 	Get(ctx context.Context, req ranking.GetRankingRequest) ([]ranking.Entry, error)
+	GetTrucoTeams(ctx context.Context, req ranking.GetRankingRequest) ([]ranking.TeamEntry, error)
 }
 
 type RankingHandler struct {
@@ -41,6 +42,24 @@ func (h *RankingHandler) Get(c *gin.Context) {
 		}
 
 		response.Error(c, http.StatusInternalServerError, "erro ao buscar ranking")
+		return
+	}
+
+	response.Data(c, http.StatusOK, entries)
+}
+
+func (h *RankingHandler) GetTrucoTeams(c *gin.Context) {
+	entries, err := h.service.GetTrucoTeams(c.Request.Context(), ranking.GetRankingRequest{
+		TeamSize: c.Query("team_size"),
+		Limit:    c.Query("limit"),
+	})
+	if err != nil {
+		if isRankingValidationError(err) {
+			response.Error(c, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		response.Error(c, http.StatusInternalServerError, "erro ao buscar ranking de duplas")
 		return
 	}
 

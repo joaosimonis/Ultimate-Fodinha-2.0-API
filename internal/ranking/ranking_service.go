@@ -17,6 +17,7 @@ const (
 type RepositoryReader interface {
 	FindFodinha(ctx context.Context, limit int) ([]Entry, error)
 	FindTruco(ctx context.Context, teamSize int, limit int) ([]Entry, error)
+	FindTrucoTeams(ctx context.Context, teamSize int, limit int) ([]TeamEntry, error)
 }
 
 type Service struct {
@@ -51,6 +52,20 @@ func (s *Service) Get(ctx context.Context, req GetRankingRequest) ([]Entry, erro
 	default:
 		return nil, ErrInvalidMode
 	}
+}
+
+func (s *Service) GetTrucoTeams(ctx context.Context, req GetRankingRequest) ([]TeamEntry, error) {
+	teamSize, err := parseTeamSize(req.TeamSize)
+	if err != nil {
+		return nil, err
+	}
+
+	limit, err := parseLimit(req.Limit)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.repo.FindTrucoTeams(ctx, teamSize, limit)
 }
 
 func parseLimit(rawLimit string) (int, error) {
