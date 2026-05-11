@@ -40,7 +40,7 @@ func (r *Repository) FindFodinha(ctx context.Context, limit int) ([]Entry, error
 					bronze_medals DESC,
 					podiums DESC,
 					games_played DESC,
-					name ASC
+					avatar_key ASC
 			)::INT AS position,
 			player_id,
 			name,
@@ -139,7 +139,7 @@ func (r *Repository) FindTruco(ctx context.Context, teamSize int, limit int) ([]
 				ORDER BY wins DESC,
 					win_rate DESC,
 					games_played DESC,
-					name ASC
+					avatar_key ASC
 			)::INT AS position,
 			player_id,
 			name,
