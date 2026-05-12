@@ -31,7 +31,7 @@ func BuildApp() (*App, error) {
 	router := gin.Default()
 	router.Use(middleware.CORS(cfg.AllowedOrigins))
 
-	routes.SetupRoutes(router, pool)
+	routes.SetupRoutes(router, pool, cfg)
 
 	return &App{
 		Config: cfg,

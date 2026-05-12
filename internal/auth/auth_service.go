@@ -15,11 +15,12 @@ type UserReader interface {
 }
 
 type Service struct {
-	repo UserReader
+	repo   UserReader
+	tokens *TokenManager
 }
 
-func NewService(repo UserReader) *Service {
-	return &Service{repo: repo}
+func NewService(repo UserReader, tokens *TokenManager) *Service {
+	return &Service{repo: repo, tokens: tokens}
 }
 
 func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResponse, error) {
@@ -44,8 +45,16 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResponse, e
 		return LoginResponse{}, ErrInvalidCredentials
 	}
 
+	accessToken, err := s.tokens.Generate(user)
+	if err != nil {
+		return LoginResponse{}, err
+	}
+
 	return LoginResponse{
 		Authenticated: true,
+		AccessToken:   accessToken,
+		TokenType:     tokenTypeBearer,
+		ExpiresIn:     s.tokens.ExpiresInSeconds(),
 		User: AdminUser{
 			Username: user.Username,
 			Role:     user.Role,

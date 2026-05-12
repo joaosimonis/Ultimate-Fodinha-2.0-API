@@ -14,6 +14,9 @@ type LoginRequest struct {
 
 type LoginResponse struct {
 	Authenticated bool      `json:"authenticated"`
+	AccessToken   string    `json:"access_token"`
+	TokenType     string    `json:"token_type"`
+	ExpiresIn     int       `json:"expires_in"`
 	User          AdminUser `json:"user"`
 }
 

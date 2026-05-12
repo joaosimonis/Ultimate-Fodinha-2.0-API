@@ -7,16 +7,19 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/auth"
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/config"
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/http/handlers"
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/http/middleware"
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/matches"
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/players"
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/ranking"
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/ws"
 )
 
-func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool) {
+func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool, cfg config.Config) {
+	tokenManager := auth.NewTokenManager(cfg.JWTSecret, cfg.JWTExpiresInSeconds)
 	authRepo := auth.NewRepository(pool)
-	authService := auth.NewService(authRepo)
+	authService := auth.NewService(authRepo, tokenManager)
 	authHandler := handlers.NewAuthHandler(authService)
 
 	playersRepo := players.NewRepository(pool)
@@ -49,8 +52,8 @@ func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool) {
 		{
 			players.GET("", playersHandler.ListPlayers)
 			players.GET("/:id", playersHandler.GetPlayerByID)
-			players.POST("", playersHandler.CreatePlayer)
-			players.DELETE("/:id", playersHandler.DeletePlayer)
+			players.POST("", middleware.AdminAuth(tokenManager), playersHandler.CreatePlayer)
+			players.DELETE("/:id", middleware.AdminAuth(tokenManager), playersHandler.DeletePlayer)
 		}
 
 		matches := v1.Group("/matches")
