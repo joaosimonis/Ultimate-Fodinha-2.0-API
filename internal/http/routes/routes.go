@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/joaosimonis/ultimate-fodinha-api/internal/auth"
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/http/handlers"
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/matches"
 	"github.com/joaosimonis/ultimate-fodinha-api/internal/players"
@@ -14,6 +15,10 @@ import (
 )
 
 func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool) {
+	authRepo := auth.NewRepository(pool)
+	authService := auth.NewService(authRepo)
+	authHandler := handlers.NewAuthHandler(authService)
+
 	playersRepo := players.NewRepository(pool)
 	playersService := players.NewService(playersRepo)
 	playersHandler := handlers.NewPlayerHandler(playersService)
@@ -34,6 +39,11 @@ func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool) {
 		v1.GET("/health", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		})
+
+		auth := v1.Group("/auth")
+		{
+			auth.POST("/login", authHandler.Login)
+		}
 
 		players := v1.Group("/players")
 		{
