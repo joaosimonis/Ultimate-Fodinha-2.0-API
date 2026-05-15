@@ -57,7 +57,7 @@ func LoadConfig() (Config, error) {
 	}
 
 	return Config{
-		AppPort:             getEnv("APP_PORT", "8080"),
+		AppPort:             getEnv("APP_PORT", getEnv("PORT", "8080")),
 		AllowedOrigins:      getEnv("ALLOWED_ORIGINS", ""),
 		JWTSecret:           jwtSecret,
 		JWTExpiresInSeconds: jwtExpiresInSeconds,

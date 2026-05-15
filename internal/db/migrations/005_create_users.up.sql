@@ -9,11 +9,3 @@ CREATE TABLE users (
 );
 
 CREATE UNIQUE INDEX idx_users_username_lower ON users (LOWER(username));
-
-INSERT INTO users (username, password_hash, role)
-VALUES (
-  'admintc',
-  '$2a$10$CXlwzucpZh2zlxB8kGOIGOR.tGes9GB52/XzA/09XhYOWmGWt1d3q',
-  'admin'
-)
-ON CONFLICT DO NOTHING;
