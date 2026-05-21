@@ -1,0 +1,2 @@
+ALTER TABLE matches
+  ADD COLUMN cancelled_at TIMESTAMPTZ;

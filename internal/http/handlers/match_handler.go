@@ -19,6 +19,7 @@ type MatchService interface {
 	AddPlayers(ctx context.Context, id string, req matches.AddMatchPlayersRequest) (matches.Match, error)
 	RemovePlayer(ctx context.Context, id string, playerID string) (matches.Match, error)
 	Finish(ctx context.Context, id string, req matches.FinishMatchRequest) (matches.Match, error)
+	CancelByRoomCode(ctx context.Context, roomCode string) (matches.Match, error)
 }
 
 type MatchHandler struct {
@@ -61,6 +62,11 @@ func (h *MatchHandler) GetByRoomCode(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, matches.ErrNotFound) {
 			response.Error(c, http.StatusNotFound, matches.ErrNotFound.Error())
+			return
+		}
+
+		if errors.Is(err, matches.ErrMatchCancelled) {
+			response.Message(c, http.StatusConflict, matches.ErrMatchCancelled.Error())
 			return
 		}
 
@@ -115,6 +121,23 @@ func (h *MatchHandler) AddPlayers(c *gin.Context) {
 	response.Data(c, http.StatusOK, match)
 }
 
+func (h *MatchHandler) CancelByRoomCode(c *gin.Context) {
+	roomCode := c.Param("room_code")
+
+	match, err := h.service.CancelByRoomCode(c.Request.Context(), roomCode)
+	if err != nil {
+		if errors.Is(err, matches.ErrNotFound) {
+			response.Error(c, http.StatusNotFound, matches.ErrNotFound.Error())
+			return
+		}
+
+		response.Error(c, http.StatusInternalServerError, "erro ao cancelar partida")
+		return
+	}
+
+	response.Data(c, http.StatusOK, match)
+}
+
 func (h *MatchHandler) RemovePlayer(c *gin.Context) {
 	id := c.Param("id")
 	playerID := c.Param("player_id")
@@ -146,6 +169,11 @@ func (h *MatchHandler) Finish(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, matches.ErrNotFound) {
 			response.Error(c, http.StatusNotFound, matches.ErrNotFound.Error())
+			return
+		}
+
+		if errors.Is(err, matches.ErrMatchCancelled) {
+			response.Error(c, http.StatusConflict, matches.ErrMatchCancelled.Error())
 			return
 		}
 

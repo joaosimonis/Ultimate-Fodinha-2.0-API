@@ -13,6 +13,8 @@ import (
 
 const uniqueViolationCode = "23505"
 
+const matchColumns = "id, mode, status, room_code, max_score, lives, live_state, created_at, finished_at, cancelled_at"
+
 type Repository struct {
 	pool *pgxpool.Pool
 }
@@ -22,20 +24,11 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 }
 
 func (r *Repository) FindAll(ctx context.Context, status string) ([]Match, error) {
-	query := `
-		SELECT id, mode, status, room_code, max_score, lives, live_state, created_at, finished_at
-		FROM matches
-		ORDER BY created_at DESC
-	`
+	query := "SELECT " + matchColumns + " FROM matches ORDER BY created_at DESC"
 	args := []any{}
 
 	if status != "" {
-		query = `
-			SELECT id, mode, status, room_code, max_score, lives, live_state, created_at, finished_at
-			FROM matches
-			WHERE status = $1
-			ORDER BY created_at DESC
-		`
+		query = "SELECT " + matchColumns + " FROM matches WHERE status = $1 ORDER BY created_at DESC"
 		args = append(args, status)
 	}
 
@@ -62,11 +55,7 @@ func (r *Repository) FindAll(ctx context.Context, status string) ([]Match, error
 }
 
 func (r *Repository) FindByRoomCode(ctx context.Context, roomCode string) (Match, error) {
-	match, err := r.findOne(ctx, `
-		SELECT id, mode, status, room_code, max_score, lives, live_state, created_at, finished_at
-		FROM matches
-		WHERE room_code = $1
-	`, roomCode)
+	match, err := r.findOne(ctx, "SELECT "+matchColumns+" FROM matches WHERE room_code = $1", roomCode)
 	if err != nil {
 		return Match{}, err
 	}
@@ -81,11 +70,7 @@ func (r *Repository) FindByRoomCode(ctx context.Context, roomCode string) (Match
 }
 
 func (r *Repository) FindByID(ctx context.Context, id string) (Match, error) {
-	match, err := r.findOne(ctx, `
-		SELECT id, mode, status, room_code, max_score, lives, live_state, created_at, finished_at
-		FROM matches
-		WHERE id = $1
-	`, id)
+	match, err := r.findOne(ctx, "SELECT "+matchColumns+" FROM matches WHERE id = $1", id)
 	if err != nil {
 		return Match{}, err
 	}
@@ -103,7 +88,7 @@ func (r *Repository) Create(ctx context.Context, req CreateMatchRequest, roomCod
 	match, err := scanMatch(r.pool.QueryRow(ctx, `
 		INSERT INTO matches (mode, room_code, host_token_hash, max_score, lives)
 		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, mode, status, room_code, max_score, lives, live_state, created_at, finished_at
+		RETURNING `+matchColumns+`
 	`, req.Mode, roomCode, hostTokenHash, req.MaxScore, req.Lives))
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -181,7 +166,7 @@ func (r *Repository) Finish(ctx context.Context, id string, results []FinishMatc
 		UPDATE matches
 		SET status = 'finished', finished_at = NOW()
 		WHERE id = $1
-		RETURNING id, mode, status, room_code, max_score, lives, live_state, created_at, finished_at
+		RETURNING `+matchColumns+`
 	`, id))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -191,6 +176,30 @@ func (r *Repository) Finish(ctx context.Context, id string, results []FinishMatc
 	}
 
 	if err := tx.Commit(ctx); err != nil {
+		return Match{}, err
+	}
+
+	players, err := r.findPlayersByMatchID(ctx, match.ID)
+	if err != nil {
+		return Match{}, err
+	}
+	match.Players = players
+
+	return match, nil
+}
+
+func (r *Repository) CancelByRoomCode(ctx context.Context, roomCode string) (Match, error) {
+	match, err := scanMatch(r.pool.QueryRow(ctx, `
+		UPDATE matches
+		SET status = 'cancelled',
+			cancelled_at = COALESCE(cancelled_at, NOW())
+		WHERE LOWER(room_code) = LOWER($1)
+		RETURNING `+matchColumns+`
+	`, roomCode))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Match{}, ErrNotFound
+		}
 		return Match{}, err
 	}
 
@@ -299,6 +308,7 @@ func scanMatch(scanner matchScanner) (Match, error) {
 	var lives sql.NullInt64
 	var liveState []byte
 	var finishedAt sql.NullTime
+	var cancelledAt sql.NullTime
 
 	err := scanner.Scan(
 		&match.ID,
@@ -310,6 +320,7 @@ func scanMatch(scanner matchScanner) (Match, error) {
 		&liveState,
 		&match.CreatedAt,
 		&finishedAt,
+		&cancelledAt,
 	)
 	if err != nil {
 		return Match{}, err
@@ -331,6 +342,10 @@ func scanMatch(scanner matchScanner) (Match, error) {
 
 	if finishedAt.Valid {
 		match.FinishedAt = &finishedAt.Time
+	}
+
+	if cancelledAt.Valid {
+		match.CancelledAt = &cancelledAt.Time
 	}
 
 	return match, nil

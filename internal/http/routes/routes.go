@@ -66,6 +66,11 @@ func SetupRoutes(r *gin.Engine, pool *pgxpool.Pool, cfg config.Config) {
 			matches.PATCH("/:id/finish", matchesHandler.Finish)
 		}
 
+		admin := v1.Group("/admin", middleware.AdminAuth(tokenManager))
+		{
+			admin.PATCH("/matches/room/:room_code/cancel", matchesHandler.CancelByRoomCode)
+		}
+
 		rooms := v1.Group("/rooms")
 		{
 			rooms.GET("/:room_code", matchesHandler.GetByRoomCode)

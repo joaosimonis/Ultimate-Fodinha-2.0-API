@@ -41,6 +41,11 @@ func (h *WebSocketHandler) JoinRoom(c *gin.Context) {
 			return
 		}
 
+		if errors.Is(err, matches.ErrMatchCancelled) {
+			response.Message(c, http.StatusConflict, matches.ErrMatchCancelled.Error())
+			return
+		}
+
 		response.Error(c, http.StatusInternalServerError, "erro ao buscar sala")
 		return
 	}

@@ -21,6 +21,7 @@ const (
 	roomCodeAlphabet   = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 	StatusOngoing      = "ongoing"
 	StatusFinished     = "finished"
+	StatusCancelled    = "cancelled"
 	StatusLiveAlias    = "live"
 	StatusOngoingAlias = "ongoing"
 )
@@ -33,6 +34,7 @@ type RepositoryReader interface {
 	AddPlayers(ctx context.Context, id string, req AddMatchPlayersRequest) (Match, error)
 	RemovePlayer(ctx context.Context, id string, playerID string) (Match, error)
 	Finish(ctx context.Context, id string, results []FinishMatchPlayerResult) (Match, error)
+	CancelByRoomCode(ctx context.Context, roomCode string) (Match, error)
 	ExistsByRoomCode(ctx context.Context, roomCode string) (bool, error)
 	FindHostTokenHashByRoomCode(ctx context.Context, roomCode string) (string, error)
 	UpdateLiveStateByRoomCode(ctx context.Context, roomCode string, liveState []byte) error
@@ -60,7 +62,16 @@ func (s *Service) List(ctx context.Context, status string) ([]Match, error) {
 }
 
 func (s *Service) GetByRoomCode(ctx context.Context, roomCode string) (Match, error) {
-	return s.repo.FindByRoomCode(ctx, roomCode)
+	match, err := s.repo.FindByRoomCode(ctx, roomCode)
+	if err != nil {
+		return Match{}, err
+	}
+
+	if match.Status == StatusCancelled {
+		return Match{}, ErrMatchCancelled
+	}
+
+	return match, nil
 }
 
 func (s *Service) GetByID(ctx context.Context, id string) (Match, error) {
@@ -122,6 +133,10 @@ func (s *Service) Finish(ctx context.Context, id string, req FinishMatchRequest)
 		return Match{}, err
 	}
 
+	if match.Status == StatusCancelled {
+		return Match{}, ErrMatchCancelled
+	}
+
 	if match.Status == StatusFinished {
 		return Match{}, ErrMatchAlreadyFinished
 	}
@@ -132,6 +147,10 @@ func (s *Service) Finish(ctx context.Context, id string, req FinishMatchRequest)
 	}
 
 	return s.repo.Finish(ctx, id, results)
+}
+
+func (s *Service) CancelByRoomCode(ctx context.Context, roomCode string) (Match, error) {
+	return s.repo.CancelByRoomCode(ctx, roomCode)
 }
 
 func (s *Service) ValidateHostToken(ctx context.Context, roomCode string, hostToken string) (bool, error) {

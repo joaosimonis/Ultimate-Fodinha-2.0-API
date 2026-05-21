@@ -6,17 +6,18 @@ import (
 )
 
 type Match struct {
-	ID         string          `json:"id"`
-	Mode       string          `json:"mode"`
-	Status     string          `json:"status"`
-	RoomCode   string          `json:"room_code"`
-	HostToken  *string         `json:"host_token,omitempty"`
-	MaxScore   *int            `json:"max_score,omitempty"`
-	Lives      *int            `json:"lives,omitempty"`
-	LiveState  json.RawMessage `json:"live_state,omitempty"`
-	CreatedAt  time.Time       `json:"created_at"`
-	FinishedAt *time.Time      `json:"finished_at,omitempty"`
-	Players    []MatchPlayer   `json:"players,omitempty"`
+	ID          string          `json:"id"`
+	Mode        string          `json:"mode"`
+	Status      string          `json:"status"`
+	RoomCode    string          `json:"room_code"`
+	HostToken   *string         `json:"host_token,omitempty"`
+	MaxScore    *int            `json:"max_score,omitempty"`
+	Lives       *int            `json:"lives,omitempty"`
+	LiveState   json.RawMessage `json:"live_state,omitempty"`
+	CreatedAt   time.Time       `json:"created_at"`
+	FinishedAt  *time.Time      `json:"finished_at,omitempty"`
+	CancelledAt *time.Time      `json:"cancelled_at,omitempty"`
+	Players     []MatchPlayer   `json:"players,omitempty"`
 }
 
 type MatchPlayer struct {
