@@ -66,6 +66,12 @@ func (r *Repository) FindByRoomCode(ctx context.Context, roomCode string) (Match
 	}
 	match.Players = players
 
+	teams, err := r.findTeamsByMatchID(ctx, match.ID)
+	if err != nil {
+		return Match{}, err
+	}
+	match.Teams = teams
+
 	return match, nil
 }
 
@@ -80,6 +86,12 @@ func (r *Repository) FindByID(ctx context.Context, id string) (Match, error) {
 		return Match{}, err
 	}
 	match.Players = players
+
+	teams, err := r.findTeamsByMatchID(ctx, match.ID)
+	if err != nil {
+		return Match{}, err
+	}
+	match.Teams = teams
 
 	return match, nil
 }
@@ -107,11 +119,43 @@ func (r *Repository) AddPlayers(ctx context.Context, id string, req AddMatchPlay
 	}
 	defer tx.Rollback(ctx)
 
+	teamIDs := make(map[string]string)
+	displayOrder := 1
 	for _, player := range req.Players {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO match_players (match_id, player_id, team_name)
+		teamName := normalizedTeamNameString(player.TeamName)
+		if teamName == "" {
+			continue
+		}
+
+		if _, exists := teamIDs[teamName]; exists {
+			continue
+		}
+
+		var teamID string
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO match_teams (match_id, name, display_order)
 			VALUES ($1, $2, $3)
-		`, id, player.PlayerID, normalizedTeamName(player.TeamName)); err != nil {
+			ON CONFLICT (match_id, name) DO UPDATE SET name = EXCLUDED.name
+			RETURNING id
+		`, id, teamName, displayOrder).Scan(&teamID); err != nil {
+			return Match{}, err
+		}
+
+		teamIDs[teamName] = teamID
+		displayOrder++
+	}
+
+	for _, player := range req.Players {
+		teamName := normalizedTeamNameString(player.TeamName)
+		var teamID any
+		if teamName != "" {
+			teamID = teamIDs[teamName]
+		}
+
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO match_players (match_id, player_id, team_id, team_name)
+			VALUES ($1, $2, $3, $4)
+		`, id, player.PlayerID, teamID, nullableTeamName(player.TeamName)); err != nil {
 			if isUniqueViolation(err) {
 				return Match{}, ErrDuplicatePlayer
 			}
@@ -185,6 +229,12 @@ func (r *Repository) Finish(ctx context.Context, id string, results []FinishMatc
 	}
 	match.Players = players
 
+	teams, err := r.findTeamsByMatchID(ctx, match.ID)
+	if err != nil {
+		return Match{}, err
+	}
+	match.Teams = teams
+
 	return match, nil
 }
 
@@ -208,6 +258,12 @@ func (r *Repository) CancelByRoomCode(ctx context.Context, roomCode string) (Mat
 		return Match{}, err
 	}
 	match.Players = players
+
+	teams, err := r.findTeamsByMatchID(ctx, match.ID)
+	if err != nil {
+		return Match{}, err
+	}
+	match.Teams = teams
 
 	return match, nil
 }
@@ -272,7 +328,7 @@ func (r *Repository) findOne(ctx context.Context, query string, args ...any) (Ma
 
 func (r *Repository) findPlayersByMatchID(ctx context.Context, matchID string) ([]MatchPlayer, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, match_id, player_id, team_name, final_score, remaining_lives, placement, is_winner
+		SELECT id, match_id, player_id, team_id, team_name, final_score, remaining_lives, placement, is_winner
 		FROM match_players
 		WHERE match_id = $1
 		ORDER BY team_name NULLS LAST, id
@@ -296,6 +352,42 @@ func (r *Repository) findPlayersByMatchID(ctx context.Context, matchID string) (
 	}
 
 	return players, nil
+}
+
+func (r *Repository) findTeamsByMatchID(ctx context.Context, matchID string) ([]MatchTeam, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT
+			mt.id,
+			mt.match_id,
+			mt.name,
+			MAX(mp.final_score)::INT AS final_score,
+			MIN(mp.placement)::INT AS placement,
+			COALESCE(BOOL_OR(mp.is_winner), FALSE) AS is_winner
+		FROM match_teams mt
+		LEFT JOIN match_players mp ON mp.team_id = mt.id
+		WHERE mt.match_id = $1
+		GROUP BY mt.id, mt.match_id, mt.name, mt.display_order
+		ORDER BY mt.display_order, mt.name
+	`, matchID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var teams []MatchTeam
+	for rows.Next() {
+		team, err := scanMatchTeam(rows)
+		if err != nil {
+			return nil, err
+		}
+		teams = append(teams, team)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return teams, nil
 }
 
 type matchScanner interface {
@@ -353,6 +445,7 @@ func scanMatch(scanner matchScanner) (Match, error) {
 
 func scanMatchPlayer(scanner matchScanner) (MatchPlayer, error) {
 	var player MatchPlayer
+	var teamID sql.NullString
 	var teamName sql.NullString
 	var finalScore sql.NullInt64
 	var remainingLives sql.NullInt64
@@ -362,6 +455,7 @@ func scanMatchPlayer(scanner matchScanner) (MatchPlayer, error) {
 		&player.ID,
 		&player.MatchID,
 		&player.PlayerID,
+		&teamID,
 		&teamName,
 		&finalScore,
 		&remainingLives,
@@ -370,6 +464,10 @@ func scanMatchPlayer(scanner matchScanner) (MatchPlayer, error) {
 	)
 	if err != nil {
 		return MatchPlayer{}, err
+	}
+
+	if teamID.Valid {
+		player.TeamID = teamID.String
 	}
 
 	if teamName.Valid {
@@ -394,13 +492,48 @@ func scanMatchPlayer(scanner matchScanner) (MatchPlayer, error) {
 	return player, nil
 }
 
+func scanMatchTeam(scanner matchScanner) (MatchTeam, error) {
+	var team MatchTeam
+	var finalScore sql.NullInt64
+	var placement sql.NullInt64
+
+	err := scanner.Scan(
+		&team.ID,
+		&team.MatchID,
+		&team.TeamName,
+		&finalScore,
+		&placement,
+		&team.IsWinner,
+	)
+	if err != nil {
+		return MatchTeam{}, err
+	}
+
+	if finalScore.Valid {
+		value := int(finalScore.Int64)
+		team.FinalScore = &value
+	}
+
+	if placement.Valid {
+		value := int(placement.Int64)
+		team.Placement = &value
+	}
+
+	return team, nil
+}
+
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode
 }
 
-func normalizedTeamName(teamName string) any {
+func normalizedTeamNameString(teamName string) string {
 	teamName = strings.TrimSpace(teamName)
+	return teamName
+}
+
+func nullableTeamName(teamName string) any {
+	teamName = normalizedTeamNameString(teamName)
 	if teamName == "" {
 		return nil
 	}

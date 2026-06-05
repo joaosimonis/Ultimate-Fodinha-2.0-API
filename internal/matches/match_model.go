@@ -17,13 +17,24 @@ type Match struct {
 	CreatedAt   time.Time       `json:"created_at"`
 	FinishedAt  *time.Time      `json:"finished_at,omitempty"`
 	CancelledAt *time.Time      `json:"cancelled_at,omitempty"`
+	Teams       []MatchTeam     `json:"teams,omitempty"`
 	Players     []MatchPlayer   `json:"players,omitempty"`
+}
+
+type MatchTeam struct {
+	ID         string `json:"id"`
+	MatchID    string `json:"match_id"`
+	TeamName   string `json:"team_name"`
+	FinalScore *int   `json:"final_score,omitempty"`
+	Placement  *int   `json:"placement"`
+	IsWinner   bool   `json:"is_winner"`
 }
 
 type MatchPlayer struct {
 	ID             string `json:"id"`
 	MatchID        string `json:"match_id"`
 	PlayerID       string `json:"player_id"`
+	TeamID         string `json:"team_id,omitempty"`
 	TeamName       string `json:"team_name,omitempty"`
 	FinalScore     *int   `json:"final_score,omitempty"`
 	RemainingLives *int   `json:"remaining_lives,omitempty"`
@@ -58,7 +69,8 @@ type FinishMatchPlayerRequest struct {
 }
 
 type FinishMatchTeamRequest struct {
-	TeamName   string `json:"team_name" binding:"required"`
+	TeamID     string `json:"team_id"`
+	TeamName   string `json:"team_name"`
 	FinalScore *int   `json:"final_score"`
 }
 

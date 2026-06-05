@@ -476,23 +476,27 @@ func validateTrucoFinish(match Match, req FinishMatchRequest) ([]FinishMatchPlay
 		return nil, ErrTeamsRequired
 	}
 
-	matchTeams := teamsFromMatchPlayers(match.Players)
-	if len(matchTeams) != 2 {
+	teamsByID, teamsByName := trucoTeamsFromMatch(match)
+	if trucoTeamCount(teamsByID, teamsByName) != 2 {
 		return nil, ErrTrucoTeamCount
 	}
 
 	scores := make(map[string]int, 2)
 	for _, team := range req.Teams {
-		teamName := strings.TrimSpace(team.TeamName)
-		if teamName == "" {
-			return nil, ErrTrucoTeamRequired
-		}
-
-		if _, exists := matchTeams[teamName]; !exists {
+		teamRef, exists := findTrucoTeam(team, teamsByID, teamsByName)
+		if !exists {
+			if strings.TrimSpace(team.TeamID) == "" && strings.TrimSpace(team.TeamName) == "" {
+				return nil, ErrTrucoTeamRequired
+			}
 			return nil, ErrUnknownTeam
 		}
 
-		if _, exists := scores[teamName]; exists {
+		scoreKey := teamRef.scoreKey()
+		if scoreKey == "" {
+			return nil, ErrTrucoTeamRequired
+		}
+
+		if _, exists := scores[scoreKey]; exists {
 			return nil, ErrTrucoTeamCount
 		}
 
@@ -504,10 +508,10 @@ func validateTrucoFinish(match Match, req FinishMatchRequest) ([]FinishMatchPlay
 			return nil, ErrInvalidTeamScore
 		}
 
-		scores[teamName] = *team.FinalScore
+		scores[scoreKey] = *team.FinalScore
 	}
 
-	if len(scores) != len(matchTeams) {
+	if len(scores) != trucoTeamCount(teamsByID, teamsByName) {
 		return nil, ErrTeamsRequired
 	}
 
@@ -518,10 +522,11 @@ func validateTrucoFinish(match Match, req FinishMatchRequest) ([]FinishMatchPlay
 
 	results := make([]FinishMatchPlayerResult, 0, len(match.Players))
 	for _, player := range match.Players {
-		score := scores[player.TeamName]
+		scoreKey := trucoTeamScoreKey(player.TeamID, player.TeamName)
+		score := scores[scoreKey]
 		placement := 2
 		isWinner := false
-		if player.TeamName == winnerTeam {
+		if scoreKey == winnerTeam {
 			placement = 1
 			isWinner = true
 		}
@@ -537,16 +542,87 @@ func validateTrucoFinish(match Match, req FinishMatchRequest) ([]FinishMatchPlay
 	return results, nil
 }
 
-func teamsFromMatchPlayers(players []MatchPlayer) map[string]struct{} {
-	teams := make(map[string]struct{}, 2)
-	for _, player := range players {
-		teamName := strings.TrimSpace(player.TeamName)
-		if teamName != "" {
-			teams[teamName] = struct{}{}
+type trucoTeamRef struct {
+	ID       string
+	TeamName string
+}
+
+func (t trucoTeamRef) scoreKey() string {
+	return trucoTeamScoreKey(t.ID, t.TeamName)
+}
+
+func trucoTeamScoreKey(teamID string, teamName string) string {
+	teamID = strings.TrimSpace(teamID)
+	if teamID != "" {
+		return teamID
+	}
+
+	return strings.TrimSpace(teamName)
+}
+
+func trucoTeamsFromMatch(match Match) (map[string]trucoTeamRef, map[string]trucoTeamRef) {
+	teamsByID := make(map[string]trucoTeamRef, 2)
+	teamsByName := make(map[string]trucoTeamRef, 2)
+
+	for _, team := range match.Teams {
+		teamRef := trucoTeamRef{
+			ID:       strings.TrimSpace(team.ID),
+			TeamName: strings.TrimSpace(team.TeamName),
+		}
+
+		if teamRef.ID != "" {
+			teamsByID[teamRef.ID] = teamRef
+		}
+
+		if teamRef.TeamName != "" {
+			teamsByName[teamRef.TeamName] = teamRef
 		}
 	}
 
-	return teams
+	if len(teamsByID) > 0 || len(teamsByName) > 0 {
+		return teamsByID, teamsByName
+	}
+
+	for _, player := range match.Players {
+		teamRef := trucoTeamRef{
+			ID:       strings.TrimSpace(player.TeamID),
+			TeamName: strings.TrimSpace(player.TeamName),
+		}
+
+		if teamRef.ID != "" {
+			teamsByID[teamRef.ID] = teamRef
+		}
+
+		if teamRef.TeamName != "" {
+			teamsByName[teamRef.TeamName] = teamRef
+		}
+	}
+
+	return teamsByID, teamsByName
+}
+
+func findTrucoTeam(team FinishMatchTeamRequest, teamsByID map[string]trucoTeamRef, teamsByName map[string]trucoTeamRef) (trucoTeamRef, bool) {
+	teamID := strings.TrimSpace(team.TeamID)
+	if teamID != "" {
+		teamRef, exists := teamsByID[teamID]
+		return teamRef, exists
+	}
+
+	teamName := strings.TrimSpace(team.TeamName)
+	if teamName != "" {
+		teamRef, exists := teamsByName[teamName]
+		return teamRef, exists
+	}
+
+	return trucoTeamRef{}, false
+}
+
+func trucoTeamCount(teamsByID map[string]trucoTeamRef, teamsByName map[string]trucoTeamRef) int {
+	if len(teamsByID) > 0 {
+		return len(teamsByID)
+	}
+
+	return len(teamsByName)
 }
 
 func inferTrucoWinner(scores map[string]int, maxScore int) (string, error) {
