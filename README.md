@@ -91,3 +91,28 @@ Para subir também o pgAdmin:
 ```bash
 docker compose --profile admin up --build
 ```
+
+## Documentação
+
+| Documento | Conteúdo |
+| --- | --- |
+| [Execução e configuração](docs/projeto/CONFIGURACAO.md) | Requisitos, ambiente, banco, migrations, seed, administrador e Docker |
+| [Arquitetura e persistência](docs/projeto/ARQUITETURA.md) | Organização do código, responsabilidades e tabelas |
+| [Convenções e rotas](docs/api/README.md) | URL base, respostas, erros, autenticação por rota e health check |
+| [Autenticação](docs/api/AUTENTICACAO.md) | Login administrativo e token JWT |
+| [Jogadores](docs/api/JOGADORES.md) | Consulta, cadastro e exclusão |
+| [Partidas e salas](docs/api/PARTIDAS.md) | Modelos, criação, participantes, resultados e cancelamento |
+| [Ranking](docs/api/RANKING.md) | Filtros, critérios de ordenação e formatos de retorno |
+| [WebSocket](docs/websocket/WEBSOCKET.md) | Conexão, eventos, estado ao vivo e exemplo de cliente |
+
+## Por onde começar
+
+1. Prepare o ambiente seguindo o [guia de configuração](docs/projeto/CONFIGURACAO.md).
+2. Consulte as [convenções e a tabela de rotas](docs/api/README.md).
+3. Liste os jogadores, crie uma partida e associe seus participantes pelo [guia de partidas](docs/api/PARTIDAS.md).
+4. Guarde o `host_token` retornado na criação para publicar o estado ao vivo via [WebSocket](docs/websocket/WEBSOCKET.md).
+5. Finalize a partida via HTTP para que seus resultados entrem no ranking.
+
+## Manutenção
+
+Ao alterar uma rota, revise também os modelos, as validações do serviço, as consultas do repositório e o guia correspondente. Os exemplos usam dados fictícios; substitua IDs, códigos de sala e tokens pelos retornados pela sua instância. Não há Swagger/OpenAPI servido pela aplicação atualmente.
