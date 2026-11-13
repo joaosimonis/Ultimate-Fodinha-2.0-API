@@ -20,7 +20,9 @@
 
 ## Listar e consultar
 
-`GET /api/v1/players` — público. Retorna `200` com `{"data":[<jogador>, ...]}`, ordenado por `avatar_key` crescente. Sem jogadores, o retorno atual é `{"data":null}`. Não há busca, filtros ou paginação.
+`GET /api/v1/players` — público. Retorna apenas jogadores com `is_active = TRUE`, ordenados por `avatar_key` crescente, com `200` e `{"data":[<jogador>, ...]}`. Sem jogadores, retorna `{"data":[]}`. Não há busca ou paginação.
+
+Para ocultar um jogador do catálogo e da seleção sem apagar seu histórico, defina `players.is_active = FALSE` no banco. Para reexibir, use `TRUE`. Aplique a migration `008` antes de publicar esta versão da API. A consulta por ID, as partidas e os rankings continuam incluindo os jogadores ocultos. O filtro controla a seleção no frontend; não impede adicionar um ID conhecido diretamente pela API.
 
 `GET /api/v1/players/:id` — público. Retorna `200` com `{"data":<jogador>}` ou `404` com `{"error":"jogador não encontrado"}`.
 

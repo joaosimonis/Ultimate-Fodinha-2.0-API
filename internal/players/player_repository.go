@@ -20,6 +20,7 @@ func (r *Repository) FindAll(ctx context.Context) ([]Player, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, name, avatar_key, title, lore, ultimate, created_at
 		FROM players
+		WHERE is_active = TRUE
 		ORDER BY avatar_key ASC
 	`)
 	if err != nil {
